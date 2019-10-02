@@ -6,6 +6,7 @@ from tqdm import tqdm
 import tensorflow as tf
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
+tf.logging.set_verbosity(tf.logging.ERROR)
 
 import keras
 import keras.backend as K
