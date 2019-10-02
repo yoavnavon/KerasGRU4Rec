@@ -183,33 +183,30 @@ def get_metrics(model, args, train_generator_map, recall_k=20, mrr_k=20):
     rec_sum = 0
     mrr_sum = 0
 
-    with tqdm(total=args.test_samples_qty) as pbar:
-        for feat, label, mask in test_generator:
+    print("Evaluating model...")
+    for feat, label, mask in test_generator:
 
-            target_oh = to_categorical(label, num_classes=args.train_n_items)
-            input_oh  = to_categorical(feat,  num_classes=args.train_n_items) 
-            input_oh = np.expand_dims(input_oh, axis=1)
-            
-            pred = model.predict(input_oh, batch_size=args.batch_size)
+        target_oh = to_categorical(label, num_classes=args.train_n_items)
+        input_oh  = to_categorical(feat,  num_classes=args.train_n_items) 
+        input_oh = np.expand_dims(input_oh, axis=1)
+        
+        pred = model.predict(input_oh, batch_size=args.batch_size)
 
-            for row_idx in range(feat.shape[0]):
-                pred_row = pred[row_idx] 
-                label_row = target_oh[row_idx]
+        for row_idx in range(feat.shape[0]):
+            pred_row = pred[row_idx] 
+            label_row = target_oh[row_idx]
 
-                rec_idx =  pred_row.argsort()[-recall_k:][::-1]
-                mrr_idx =  pred_row.argsort()[-mrr_k:][::-1]
-                tru_idx = label_row.argsort()[-1:][::-1]
+            rec_idx =  pred_row.argsort()[-recall_k:][::-1]
+            mrr_idx =  pred_row.argsort()[-mrr_k:][::-1]
+            tru_idx = label_row.argsort()[-1:][::-1]
 
-                n += 1
+            n += 1
 
-                if tru_idx[0] in rec_idx:
-                    rec_sum += 1
+            if tru_idx[0] in rec_idx:
+                rec_sum += 1
 
-                if tru_idx[0] in mrr_idx:
-                    mrr_sum += 1/int((np.where(mrr_idx == tru_idx[0])[0]+1))
-            
-            pbar.set_description("Evaluating model")
-            pbar.update(test_generator.done_sessions_counter)
+            if tru_idx[0] in mrr_idx:
+                mrr_sum += 1/int((np.where(mrr_idx == tru_idx[0])[0]+1))
 
     recall = rec_sum/n
     mrr = mrr_sum/n
@@ -221,7 +218,7 @@ def train_model(model, args, save_weights = False):
     model_to_train = model
     batch_size = args.batch_size
 
-    for epoch in range(1, 10):
+    for epoch in range(1, args.epochs):
         with tqdm(total=args.train_samples_qty) as pbar:
             loader = SessionDataLoader(train_dataset, batch_size=batch_size)
             for feat, target, mask in loader:
@@ -248,12 +245,16 @@ def train_model(model, args, save_weights = False):
         if save_weights:
             print("Saving weights...")
             model_to_train.save('./GRU4REC_{}.h5'.format(epoch))
-        
-        (rec, rec_k), (mrr, mrr_k) = get_metrics(model_to_train, args, train_dataset.itemmap)
 
+        if args.eval_all_epochs:
+            (rec, rec_k), (mrr, mrr_k) = get_metrics(model_to_train, args, train_dataset.itemmap)
+            print("\t - Recall@{} epoch {}: {:5f}".format(rec_k, epoch, rec))
+            print("\t - MRR@{}    epoch {}: {:5f}\n".format(mrr_k, epoch, mrr))
+
+    if not args.eval_all_epochs:
+        (rec, rec_k), (mrr, mrr_k) = get_metrics(model_to_train, args, train_dataset.itemmap)
         print("\t - Recall@{} epoch {}: {:5f}".format(rec_k, epoch, rec))
-        print("\t - MRR@{}    epoch {}: {:5f}".format(mrr_k, epoch, mrr))
-        print("\n")
+        print("\t - MRR@{}    epoch {}: {:5f}\n".format(mrr_k, epoch, mrr))
 
             
 if __name__ == '__main__':
@@ -263,6 +264,8 @@ if __name__ == '__main__':
     parser.add_argument('--dev-path', type=str, default='../../processedData/rsc15_train_valid.txt')
     parser.add_argument('--test-path', type=str, default='../../processedData/rsc15_test.txt')
     parser.add_argument('--batch-size', type=str, default=512)
+    parser.add_argument('--eval-all-epochs', type=bool, default=False)
+    parser.add_argument('--epochs', type=int, default=10)
     args = parser.parse_args()
 
     args.train_data = pd.read_csv(args.train_path, sep='\t', dtype={'ItemId': np.int64})
