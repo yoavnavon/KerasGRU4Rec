@@ -214,7 +214,7 @@ def get_metrics(model, args, train_generator_map, recall_k=20, mrr_k=20):
     return (recall, recall_k), (mrr, mrr_k)
 
 
-def train_model(model, args, save_weights = False):
+def train_model(model, args):
     train_dataset = SessionDataset(args.train_data)
     model_to_train = model
     batch_size = args.batch_size
@@ -243,7 +243,7 @@ def train_model(model, args, save_weights = False):
                 pbar.set_description("Epoch {0}. Loss: {1:.5f}".format(epoch, tr_loss))
                 pbar.update(loader.done_sessions_counter)
             
-        if save_weights:
+        if args.save_weights:
             print("Saving weights...")
             model_to_train.save('./GRU4REC_{}.h5'.format(epoch))
 
@@ -266,6 +266,7 @@ if __name__ == '__main__':
     parser.add_argument('--test-path', type=str, default='../../processedData/rsc15_test.txt')
     parser.add_argument('--batch-size', type=str, default=512)
     parser.add_argument('--eval-all-epochs', type=bool, default=False)
+    parser.add_argument('--save-weights', type=bool, default=False)
     parser.add_argument('--epochs', type=int, default=10)
     args = parser.parse_args()
 
