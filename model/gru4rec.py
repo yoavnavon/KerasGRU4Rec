@@ -289,5 +289,5 @@ if __name__ == '__main__':
     else:
         model = create_model(args)
             
-    train_model(model, args, save_weights=True)
+    train_model(model, args)
 
